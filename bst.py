@@ -1,64 +1,69 @@
+import sys
+from typing import Any, Callable, Union
 from dataclasses import dataclass
-from typing import Any, Callable, Optional
 
-@dataclass(frozen=True)
+sys.setrecursionlimit(10**6)
+
+BinTree = Union['Node', None]
+
+@dataclass
 class Node:
     element: Any
-    left: Optional[Node] = None
-    right: Optional[Node] = None
-
-
-BinTree = Optional[Node]
+    left: BinTree = None
+    right: BinTree = None
 
 @dataclass(frozen=True)
 class frozenBinarySearchTree:
     comes_before: Callable[[Any, Any], bool]
     tree: BinTree = None
 
-#return true if bst has no nodes
 def is_empty(bst: frozenBinarySearchTree) -> bool:
     return bst.tree is None
 
 #insert value into bst and return new tree
 def insert(bst: frozenBinarySearchTree, value: Any) -> frozenBinarySearchTree:
-    def _insert(node: BinTree) -> BinTree:
-        if node is None:
+    def insert_node(tree: BinTree) -> BinTree:
+        if tree is None:
             return Node(value)
-        if bst.comes_before(value, node.element):
-            return Node(node.element, _insert(node.left), node.right)
+        if bst.comes_before(value, tree.element):
+            return Node(tree.element, insert_node(tree.left), tree.right)
         else:
-            return Node(node.element, node.left, _insert(node.right))
-    return frozenBinarySearchTree(bst.comes_before, _insert(bst.tree))
+            return Node(tree.element, tree.left, insert_node(tree.right))
+    return frozenBinarySearchTree(bst.comes_before, insert_node(bst.tree))
 
 #return true if value is found in bst
 def lookup(bst: frozenBinarySearchTree, value: Any) -> bool:
-    node = bst.tree
-    while node:
-        if not bst.comes_before(value, node.element) and not bst.comes_before(node.element, value):
+    tree = bst.tree
+    while tree is not None:
+        if not bst.comes_before(value, tree.element) and not bst.comes_before(tree.element, value):
             return True
-        node = node.left if bst.comes_before(value, node.element) else node.right
+        elif bst.comes_before(value, tree.element):
+            tree = tree.left
+        else:
+            tree = tree.right
     return False
 
 #delete one occurrence of value from bst and return new tree
 def delete(bst: frozenBinarySearchTree, value: Any) -> frozenBinarySearchTree:
-    def _find_min(node: Node) -> Any:
-        while node.left:
-            node = node.left
-        return node.element
+    def find_min(tree: BinTree) -> Any:
+        while tree.left is not None:
+            tree = tree.left
+        return tree.element
 
-    def _delete(node: BinTree) -> BinTree:
-        if node is None:
+    def delete_helper(tree: BinTree) -> BinTree:
+        if tree is None:
             return None
-        if not bst.comes_before(value, node.element) and not bst.comes_before(node.element, value):
-            if node.left is None:
-                return node.right
-            if node.right is None:
-                return node.left
-            succ = _find_min(node.right)
-            return Node(succ, node.left, _delete(node.right))
-        if bst.comes_before(value, node.element):
-            return Node(node.element, _delete(node.left), node.right)
+        if not bst.comes_before(value, tree.element) and not bst.comes_before(tree.element, value):
+            if tree.left is None:
+                return tree.right
+            elif tree.right is None:
+                return tree.left
+            else:
+                successor = find_min(tree.right)
+                return Node(successor, tree.left, delete_helper(tree.right))
+        elif bst.comes_before(value, tree.element):
+            return Node(tree.element, delete_helper(tree.left), tree.right)
         else:
-            return Node(node.element, node.left, _delete(node.right))
+            return Node(tree.element, tree.left, delete_helper(tree.right))
 
-    return frozenBinarySearchTree(bst.comes_before, _delete(bst.tree))
+    return frozenBinarySearchTree(bst.comes_before, delete_helper(bst.tree))
